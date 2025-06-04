@@ -1,6 +1,6 @@
-# Domain-Specific Q&A Agent
+# Domain-Specific Q&A Agent: The RAG killer
 
-**A simpler, more practical alternative to traditional RAG systems** - demonstrating how modern LLMs with large context windows can eliminate the complexity of Retrieval-Augmented Generation for many documentation Q&A use cases.
+**This project goal is to showcase a simpler, more practical alternative to traditional RAG systems** - demonstrating how modern LLMs with large context windows can eliminate the complexity of Retrieval-Augmented Generation for many documentation Q&A use cases.
 
 As we enter 2025, there's growing debate in the AI community about whether RAG is becoming obsolete. With models like Gemini Flash offering 1M+ token context windows and Meta's Llama 4 Scout supporting 10M tokens, many developers are questioning: **"Why build complex RAG pipelines when you can just search and load everything into context?"**
 
@@ -260,13 +260,13 @@ TAVILY_API_KEY=your_tavily_api_key_here    # Get from Tavily.com
 
 ```bash
 # Search Configuration
-MAX_RESULTS=5                    # Maximum search results per query
+MAX_RESULTS=10                    # Maximum search results per query
 SEARCH_DEPTH=basic              # Search depth: basic or advanced
-MAX_CONTENT_SIZE=10000          # Maximum content size per result
+MAX_CONTENT_SIZE=100000         # Maximum content size per result
 
 # LLM Configuration
 LLM_TEMPERATURE=0.1             # Response creativity (0.0-1.0)
-LLM_MAX_TOKENS=3000            # Maximum response length
+LLM_MAX_TOKENS=10000           # Maximum response length
 
 # Timeout Configuration
 REQUEST_TIMEOUT=30              # Request timeout in seconds

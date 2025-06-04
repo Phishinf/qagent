@@ -68,7 +68,7 @@ class TavilyDomainSearchTool(BaseTool):
 
     # Define fields properly for Pydantic v2
     tavily_client: Any = Field(default=None, exclude=True)
-    default_max_results: int = Field(default=5, exclude=True)
+    default_max_results: int = Field(default=10, exclude=True)
     default_depth: str = Field(default="basic", exclude=True)
     max_content_size: int = Field(default=10000, exclude=True)
 
@@ -77,17 +77,16 @@ class TavilyDomainSearchTool(BaseTool):
 
     def __init__(
         self,
-        max_results: int = 5,
+        api_key: str,
+        max_results: int = 10,
         depth: str = "basic",
         max_content_size: int = 10000,
-        **kwargs,
     ):
-        super().__init__(
-            default_max_results=max_results,
-            default_depth=depth,
-            max_content_size=max_content_size,
-            **kwargs,
-        )
+        super().__init__()
+        self.api_key = api_key
+        self.default_max_results = max_results
+        self.default_depth = depth
+        self.max_content_size = max_content_size
 
         # Initialize Tavily client
         tavily_api_key = os.getenv("TAVILY_API_KEY")

@@ -57,7 +57,7 @@ def validate_environment() -> Dict[str, Any]:
     config = {
         "google_api_key": google_api_key,
         "tavily_api_key": tavily_api_key,
-        "max_results": get_int_env("MAX_RESULTS", 5),
+        "max_results": get_int_env("MAX_RESULTS", 10),
         "search_depth": search_depth,
         "max_content_size": get_int_env("MAX_CONTENT_SIZE", 10000),
         "llm_temperature": get_float_env("LLM_TEMPERATURE", 0.1),
