@@ -17,6 +17,135 @@ Perfect for organizations wanting to create internal knowledge assistants that s
 - 📊 **Usage Monitoring** - Built-in health checks and error handling
 - 📚 **Educational & Practical** - Clear code structure for learning and adaptation
 
+## Why Search-First Beats RAG for Documentation Q&A
+
+This project demonstrates a **paradigm shift** from traditional RAG (Retrieval-Augmented Generation) to a **Search-First approach** that leverages modern LLM capabilities like Gemini Flash's 1 million token context window.
+
+### **Traditional RAG Approach**
+```mermaid
+graph TD
+    A[Documents] --> B[Chunk & Split]
+    B --> C[Generate Embeddings]
+    C --> D[Store in Vector DB]
+    D --> E[Query Embeddings]
+    E --> F[Similarity Search]
+    F --> G[Retrieve Chunks]
+    G --> H[Assemble Context]
+    H --> I[LLM Processing]
+    
+    style B fill:#ffcccc
+    style C fill:#ffcccc
+    style D fill:#ffcccc
+    style E fill:#ffcccc
+```
+
+### **Our Search-First Approach**
+```mermaid
+graph TD
+    A[User Query] --> B[Tavily Search]
+    B --> C[Live Web Results]
+    C --> D[Filter by Domain]
+    D --> E[Extract Relevant Content]
+    E --> F[Gemini Flash (1M tokens)]
+    
+    style B fill:#ccffcc
+    style C fill:#ccffcc
+    style F fill:#ccffcc
+```
+
+### **Comparison Table**
+
+| Aspect | Traditional RAG | Search-First (This Project) |
+|--------|----------------|------------------------------|
+| **Data Freshness** | ❌ Stale (requires refresh) | ✅ Always current |
+| **Setup Complexity** | ❌ High (chunking, embeddings, vector DB) | ✅ Low (just search API) |
+| **Maintenance** | ❌ Ongoing (re-indexing, updates) | ✅ Zero maintenance |
+| **Context Size** | ❌ Limited by chunk retrieval | ✅ 1M tokens available |
+| **Accuracy** | ❌ Depends on chunking strategy | ✅ Full document context |
+| **Latency** | ✅ Fast (~50ms vector search) | ⚠️ Moderate (~2-5s search + LLM) |
+| **Cost at Scale** | ✅ Lower for high-volume queries | ⚠️ Higher per query |
+| **Infrastructure** | ❌ Complex (vector DB, embeddings) | ✅ Simple (API calls) |
+
+### **Why Search-First Wins for Documentation**
+
+#### **1. Always Fresh Information**
+```python
+# RAG: Potentially stale data
+doc_chunks = vector_db.search("FastAPI authentication")  # Last indexed weeks ago?
+
+# Search-First: Live, current data
+results = tavily.search(
+    "FastAPI authentication",
+    include_domains=["fastapi.tiangolo.com"]  # Always latest docs
+)
+```
+
+#### **2. No Data Fragmentation**
+```python
+# RAG: Information split across chunks
+chunk1 = "FastAPI supports OAuth2..."  # Missing context
+chunk2 = "...with security dependencies"  # Disconnected
+
+# Search-First: Complete context
+full_page = search_results[0].content  # Entire documentation page
+```
+
+#### **3. Simplified Architecture**
+```python
+# RAG Pipeline (Complex)
+documents → chunking → embeddings → vector_store → similarity_search → context_assembly → llm
+
+# Search-First (Simple)
+query → search_api → filter_domains → llm_with_full_context
+```
+
+#### **4. Perfect for Documentation Use Cases**
+Documentation has unique characteristics that favor search over RAG:
+- **Authoritative sources** (official docs are the ground truth)
+- **Frequent updates** (new versions, patches, features)
+- **Hierarchical structure** (search engines understand this better than embeddings)
+- **SEO optimization** (docs are already optimized for discovery)
+
+### **When to Choose Each Approach**
+
+#### **Choose Search-First When:**
+- ✅ Working with **public documentation**
+- ✅ Need **always-current information**
+- ✅ Want **simple deployment and maintenance**
+- ✅ Have access to **quality search APIs**
+- ✅ Can leverage **large context windows** (1M+ tokens)
+- ✅ Sources are **well-structured websites**
+
+#### **Choose RAG When:**
+- ✅ Working with **private/internal documents**
+- ✅ Need **ultra-low latency** (<100ms)
+- ✅ Have **millions of daily queries**
+- ✅ Require **fine-grained access control**
+- ✅ Working with **unstructured internal data**
+- ✅ Need **offline capabilities**
+
+### **The Future: Hybrid Approaches**
+Smart systems might combine both:
+
+```python
+def intelligent_retrieval(query, context_type):
+    if context_type == "public_docs":
+        return search_first_approach(query)  # This project's approach
+    elif context_type == "private_internal":
+        return traditional_rag(query)
+    elif context_type == "real_time":
+        return live_search(query)
+```
+
+### **Real-World Impact**
+This approach is particularly powerful for:
+- **Customer Support** (always current product docs)
+- **Developer Onboarding** (latest API documentation)
+- **Compliance Teams** (current regulatory information)
+- **Training Materials** (up-to-date educational content)
+
+The **million-token context window revolution** means we can now skip the complexity of RAG for many use cases and go straight to the source! 🚀
+
 ## How Guardrails Work
 
 This project demonstrates **organizational AI safety** through multiple layers:
@@ -71,7 +200,7 @@ graph TD
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/javiramos1/qagent.git
 cd qagent
 
 # Setup environment and install dependencies
@@ -89,7 +218,7 @@ make run
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/javiramos1/qagent.git
 cd qagent
 
 # Copy and configure environment variables
@@ -331,12 +460,45 @@ qagent/
 
 ## License
 
-This project is for educational purposes. Please check the licenses of the dependencies used.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+### Copyright Notice
+
+```
+Copyright 2024 Javi Ramos
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+```
 
 ## Contributing
 
-This is an educational project. Feel free to:
-- Fork and experiment
-- Suggest improvements
-- Use as a learning resource
-- Adapt for your own projects 
+Contributions are welcome! This project follows the Apache 2.0 license terms:
+
+- ✅ **Fork and experiment** with the codebase
+- ✅ **Submit pull requests** for improvements
+- ✅ **Use in commercial projects** (with proper attribution)
+- ✅ **Create derivative works** while maintaining license compliance
+- ✅ **Educational use** encouraged for learning AI agent development
+
+Please ensure any contributions maintain the educational focus and include proper documentation.
+
+## Acknowledgments
+
+- **LangChain** - Framework for building applications with large language models
+- **Google Gemini** - Advanced language model capabilities
+- **Tavily** - Web search API with domain restriction capabilities
+- **FastAPI** - Modern, fast web framework for building APIs
+
+---
+
+**Note**: This is an educational project demonstrating enterprise AI assistant development with proper guardrails and security measures. Feel free to adapt and extend for your organizational needs while respecting the Apache 2.0 license terms. 
