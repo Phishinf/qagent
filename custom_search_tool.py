@@ -8,10 +8,15 @@ from pydantic import BaseModel, Field, ConfigDict
 from langchain.tools import BaseTool
 from tavily import TavilyClient
 import os
+import asyncio
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Web scraping imports
+from langchain_community.document_loaders import AsyncChromiumLoader
+from langchain_community.document_transformers import BeautifulSoupTransformer
 
 
 class TavilySearchInput(BaseModel):
@@ -42,10 +47,20 @@ class TavilySearchInput(BaseModel):
     )
 
 
+class WebScrapingInput(BaseModel):
+    """Input for web scraping tool"""
+    
+    url: str = Field(description="URL of the website to scrape for detailed information")
+    tags_to_extract: List[str] = Field(
+        default=["p", "li", "div", "a", "span", "h1", "h2", "h3", "h4", "h5", "h6"],
+        description="HTML tags to extract content from. Default includes common content tags."
+    )
+
+
 class TavilyDomainSearchTool(BaseTool):
     """Custom tool for searching specific domains using Tavily"""
 
-    name: str = "tavily_domain_search"
+    name: str = "search_documentation"
     description: str = """
     Search for information within specific documentation websites using Tavily web search.
 
@@ -182,3 +197,120 @@ class TavilyDomainSearchTool(BaseTool):
         # In a production environment, you might want to use aiohttp or similar
         # for async requests
         return self._run(input, sites, max_results, depth)
+
+
+class WebScrapingTool(BaseTool):
+    """Tool for scraping entire websites when search results are insufficient"""
+    
+    name: str = "scrape_website"
+    description: str = """Scrape entire website content when search results don't provide sufficient information.
+    
+    This tool uses Chromium to load and scrape complete website content, extracting text from various HTML tags.
+    It should ONLY be used when the search tool doesn't provide adequate information to answer the user's question.
+    
+    Key features:
+    - Uses headless Chromium for JavaScript rendering
+    - Extracts content from multiple HTML tags
+    - Handles modern dynamic websites
+    - Returns formatted text content
+    
+    Usage Guidelines:
+    1. Only use this tool if search results are insufficient
+    2. Provide the specific URL that likely contains the needed information
+    3. The tool will extract comprehensive content from the page
+    4. Results will be formatted for easy reading and analysis
+    
+    Warning: This tool loads entire web pages and can be slower than search. Use sparingly."""
+    
+    args_schema: Type[BaseModel] = WebScrapingInput
+    
+    def _run(self, url: str, tags_to_extract: List[str] = None) -> str:
+        """Scrape website content synchronously"""
+        try:
+            # Set default tags if none provided
+            if tags_to_extract is None:
+                tags_to_extract = ["p", "li", "div", "a", "span", "h1", "h2", "h3", "h4", "h5", "h6"]
+            
+            # Use AsyncChromiumLoader to load the page
+            loader = AsyncChromiumLoader([url])
+            html_docs = loader.load()
+            
+            if not html_docs:
+                return f"Failed to load content from {url}"
+            
+            # Transform HTML to readable text
+            bs_transformer = BeautifulSoupTransformer()
+            docs_transformed = bs_transformer.transform_documents(
+                html_docs, 
+                tags_to_extract=tags_to_extract
+            )
+            
+            if not docs_transformed:
+                return f"No content extracted from {url}"
+            
+            # Format the result
+            content = docs_transformed[0].page_content
+            
+            # Limit content size to avoid overwhelming responses
+            max_content_length = 8000
+            if len(content) > max_content_length:
+                content = content[:max_content_length] + "\n\n... (content truncated for brevity)"
+            
+            formatted_result = f"""
+**Website Scraped:** {url}
+**Content Extracted:**
+
+{content}
+
+**Note:** This is the complete website content. Use this information to provide a comprehensive answer.
+"""
+            return formatted_result
+            
+        except Exception as e:
+            return f"Web scraping error for {url}: {str(e)}"
+    
+    async def _arun(self, url: str, tags_to_extract: List[str] = None) -> str:
+        """Scrape website content asynchronously"""
+        try:
+            # Set default tags if none provided
+            if tags_to_extract is None:
+                tags_to_extract = ["p", "li", "div", "a", "span", "h1", "h2", "h3", "h4", "h5", "h6"]
+            
+            # Use AsyncChromiumLoader for async loading
+            loader = AsyncChromiumLoader([url])
+            html_docs = await asyncio.to_thread(loader.load)
+            
+            if not html_docs:
+                return f"Failed to load content from {url}"
+            
+            # Transform HTML to readable text
+            bs_transformer = BeautifulSoupTransformer()
+            docs_transformed = await asyncio.to_thread(
+                bs_transformer.transform_documents,
+                html_docs, 
+                tags_to_extract=tags_to_extract
+            )
+            
+            if not docs_transformed:
+                return f"No content extracted from {url}"
+            
+            # Format the result
+            content = docs_transformed[0].page_content
+            
+            # Limit content size to avoid overwhelming responses
+            max_content_length = 8000
+            if len(content) > max_content_length:
+                content = content[:max_content_length] + "\n\n... (content truncated for brevity)"
+            
+            formatted_result = f"""
+**Website Scraped:** {url}
+**Content Extracted:**
+
+{content}
+
+**Note:** This is the complete website content. Use this information to provide a comprehensive answer.
+"""
+            return formatted_result
+            
+        except Exception as e:
+            return f"Web scraping error for {url}: {str(e)}"

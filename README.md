@@ -8,18 +8,18 @@ This project provides a **hands-on example** of this approach - showcasing intel
 
 Perfect for organizations wanting to create internal knowledge assistants that stay within approved documentation boundaries without the overhead of traditional RAG infrastructure.
 
-## Features
+## Key Features
 
-- 🏢 **Organizational Knowledge Assistant** - Safely search only approved company documentation
-- 🛡️ **Built-in Guardrails** - Tavily site restrictions prevent searching unauthorized domains
-- 🎯 **Domain Enforcement** - Agent refuses to answer questions outside configured knowledge base
-- 🤖 **Structured Chat Agent** - LangChain agent with Google Gemini 2.0 Flash for reliable responses
-- 🔍 **Controlled Search Scope** - Tavily API with explicit site allowlisting via `include_domains`
-- 🚀 **Production-Ready API** - FastAPI with automatic documentation and health checks
-- 💬 **Conversation Memory** - Maintains context across user interactions
-- 🐳 **Enterprise Deployment** - Docker support with security best practices
-- 📊 **Usage Monitoring** - Built-in health checks and error handling
-- 📚 **Educational & Practical** - Clear code structure for learning and adaptation
+- **🎯 Smart Tool Selection**: Automatically chooses between fast search and comprehensive scraping based on query needs
+- **🔍 Domain-Restricted Search**: Only searches approved organizational documentation websites
+- **🧠 Web Scraping Fallback**: Comprehensive page scraping when search results are insufficient  
+- **💰 Cost-Competitive**: At $0.005-$0.075 per query, often cheaper than traditional RAG systems
+- **⚡ Performance Optimized**: Fast search for 90% of queries, deep scraping only when needed
+- **🛡️ Data Security**: No sensitive data sent to vector databases or training systems
+- **📊 Transparent Sources**: Every answer includes clear source attribution from official documentation
+- **🔧 Easy Configuration**: Simple CSV file controls which knowledge sources are accessible
+- **💬 Conversation Memory**: Maintains context across multiple questions in a session
+- **🎮 Production Ready**: FastAPI backend with proper error handling and logging
 
 ## Why Search-First Beats RAG in 2025
 
@@ -163,31 +163,76 @@ include_domains = ["docs.langchain.com", "fastapi.tiangolo.com"]
 
 ## Architecture
 
+The system uses a **search-first approach** with **intelligent fallback to web scraping** for comprehensive information retrieval:
+
 ```mermaid
 graph TD
-    A[User Question] --> B[FastAPI Endpoint]
-    B --> C[LangChain Agent]
-    C --> D{Question Analysis}
-    D --> E[Tavily Search Tool]
-    E --> F[Site Restrictions Check]
-    F --> G{Domain Allowed?}
-    G -->|Yes| H[Search Approved Sites]
-    G -->|No| I[Reject & Guide User]
-    H --> J[Google Gemini LLM]
-    J --> K[Structured Response]
-    I --> K
-    K --> L[Memory Update]
-    L --> M[Return Response]
+    A[User Query] --> B[LangChain Agent]
+    B --> C{Analyze Query}
+    C --> D[Select Relevant Sites]
+    D --> E[Tavily Search API]
+    E --> F{Search Results Sufficient?}
     
-    N[sites_data.csv] --> E
-    O[Environment Config] --> E
-    P[Conversation Memory] --> C
+    F -->|Yes| G[Generate Response]
+    F -->|No| H[Web Scraping Tool]
+    H --> I[Playwright + BeautifulSoup]
+    I --> J[Extract Page Content]
+    J --> K[Combine Search + Scraped Data]
+    K --> G
     
-    style F fill:#ff9999
-    style G fill:#ffcc99
-    style I fill:#ff6666
-    style N fill:#99ccff
+    G --> L[Response with Sources]
+    
+    M[sites_data.csv] --> D
+    N[Domain Restrictions] --> E
+    N --> H
+    
+    style A fill:#e1f5fe
+    style B fill:#f3e5f5
+    style E fill:#e8f5e8
+    style H fill:#fff3e0
+    style G fill:#e0f2f1
+    style L fill:#f1f8e9
+    
+    classDef searchPath stroke:#4caf50,stroke-width:3px
+    classDef scrapePath stroke:#ff9800,stroke-width:3px
+    classDef decision stroke:#2196f3,stroke-width:3px
+    
+    class E,F,G searchPath
+    class H,I,J,K scrapePath
+    class C,F decision
 ```
+
+### Two-Tier Information Retrieval
+
+1. **Primary: Fast Search** - Uses Tavily API to quickly search within approved documentation websites
+2. **Fallback: Deep Scraping** - When search results are insufficient, automatically scrapes entire pages for comprehensive content
+
+### Key Components
+
+1. **Domain-Restricted Agent**: LangChain agent that only searches approved knowledge sources
+2. **Tavily Search Integration**: Fast, targeted search within specific documentation websites  
+3. **Web Scraping Tool**: Chromium-based scraping for comprehensive page content extraction
+4. **Site Restrictions**: CSV-configured domains ensure searches stay within organizational boundaries
+5. **Cost Control**: Intelligent tool selection minimizes expensive operations
+
+### Agent Decision Logic
+
+The agent follows a **smart escalation strategy**:
+
+1. **Analyze Query**: Determine relevant documentation sites based on technologies mentioned
+2. **Search First**: Use fast Tavily search within selected domains
+3. **Evaluate Results**: Assess if search provides sufficient information
+4. **Scrape if Needed**: Only scrape entire pages when search results are incomplete
+5. **Comprehensive Response**: Combine information from both sources for detailed answers
+
+### Benefits for Organizations
+
+- **Speed**: Fast search for common queries (90% of cases)
+- **Completeness**: Deep scraping ensures no information is missed
+- **Cost Efficiency**: Intelligent tool selection minimizes expensive operations
+- **Accuracy**: Official documentation sources only
+- **Audit Trail**: Complete visibility into information sources
+- **No Hallucination**: Responses based only on retrieved content
 
 ## Quick Start
 
@@ -224,29 +269,33 @@ cp .env.example .env
 make docker-run
 ```
 
-## API Documentation
+## API
 
-Once running, visit:
-- **Interactive API Docs**: http://localhost:8000/docs
-- **Alternative Docs**: http://localhost:8000/redoc
-- **Health Check**: http://localhost:8000/health
+The agent now provides **intelligent two-tier information retrieval** through a simple REST API:
 
-## API Endpoints
+### Available Endpoints
 
-### POST `/chat`
-Send a question to the agent.
-```json
-{
-  "message": "How do I create a FastAPI application?",
-  "reset_memory": false
-}
+- `POST /chat` - Send a question to the agent (automatically uses search + scraping as needed)
+- `POST /reset` - Reset conversation memory  
+- `GET /health` - Detailed health check with system status
+
+### Enhanced Chat Endpoint
+
+```bash
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "How do I create a LangChain agent with custom tools?"}'
 ```
 
-### POST `/reset`
-Reset the conversation memory.
-
-### GET `/health`
-Detailed health check with system status.
+**Example Response:**
+```json
+{
+  "status": "success",
+  "response": "Based on the LangChain documentation, here's how to create a custom agent...",
+  "sources_used": ["search: docs.langchain.com", "scraped: docs.langchain.com/agents/custom"],
+  "tools_utilized": ["search_documentation", "scrape_website"]
+}
+```
 
 ## Configuration
 

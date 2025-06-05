@@ -12,7 +12,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.schema import BaseMessage, HumanMessage, AIMessage
 
-from custom_search_tool import TavilyDomainSearchTool
+from custom_search_tool import TavilyDomainSearchTool, WebScrapingTool
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -44,6 +44,9 @@ class DomainQAAgent:
             depth=config["search_depth"],
             max_content_size=config["max_content_size"],
         )
+        
+        # Create web scraping tool for comprehensive content extraction
+        self.scraping_tool = WebScrapingTool()
         
         # Store conversation history for context
         self.chat_history: List[BaseMessage] = []
@@ -81,17 +84,17 @@ class DomainQAAgent:
         
         # Create the agent with LLM, tools, and prompt
         agent = create_structured_chat_agent(
-            llm=self.llm, tools=[self.search_tool], prompt=prompt
+            llm=self.llm, tools=[self.search_tool, self.scraping_tool], prompt=prompt
         )
 
         # Wrap agent in executor for execution control
         return AgentExecutor(
             agent=agent,
-            tools=[self.search_tool],
+            tools=[self.search_tool, self.scraping_tool],
             verbose=True,
             max_iterations=5,
             return_intermediate_steps=True,
-            handle_parsing_errors="Check your output format!",
+            handle_parsing_errors=True,
         )
 
     def _create_structured_chat_prompt(self) -> ChatPromptTemplate:
@@ -124,35 +127,54 @@ class DomainQAAgent:
 AVAILABLE KNOWLEDGE SOURCES split by category/domain/topic having the website and description for each category:
 {knowledge_sources_md}
 
-
 INSTRUCTIONS:
-1. You MUST use the search tool for ANY question
+1. ALWAYS start with the search_documentation tool for ANY question
 2. Analyze the user's question to determine relevant domains/topics/categories
 3. Select appropriate sites based on technologies/topics mentioned
-4. You must only answer questions about available knowledge sources: {domains}
-5. If question is outside available knowledge sources, do not answer the question and suggest which topics you can answer
+4. If search results don't provide sufficient information to answer the question completely, then use scrape_website tool on the most relevant URL from search results
+5. You must only answer questions about available knowledge sources: {domains}
+6. If question is outside available knowledge sources, do not answer the question and suggest which topics you can answer
+
+TOOL USAGE STRATEGY:
+- First: Use search_documentation to find relevant information quickly
+- Second: If search results are incomplete or unclear, use scrape_website on the most promising URL from search results
+- Always prefer search over scraping for efficiency
 
 RULES:
 - Be helpful and comprehensive
 - Cite sources when possible
+- Only use scraping when absolutely necessary (when search results are insufficient)
+- When scraping, choose the most relevant URL from previous search results
 
-You have access to: {{tools}}
+You have access to the following tools:
 
-Use the following format:
+{{tools}}
 
-Question: the input question you must answer
-Thought: you should always think about what to do
-Action: the action to take, should be one of [{{tool_names}}]
-Action Input: the input to the action
-Observation: the result of the action
-... (this Thought/Action/Action Input/Observation can repeat N times)
-Thought: I now know the final answer
-Final Answer: the final answer to the original input question
+Use JSON format for actions:
+```
+{{{{
+  "action": "$TOOL_NAME",
+  "action_input": "$INPUT"
+}}}}
+```
 
-Begin!
+Valid actions: "Final Answer" or {{tool_names}}
 
-Question: {{input}}
-Thought:{{agent_scratchpad}}"""
+Format:
+Question: input question
+Thought: analyze and plan
+Action: ```$JSON_BLOB```
+Observation: action result
+... (repeat as needed)
+Thought: ready to respond
+Action: 
+```
+{{{{
+  "action": "Final Answer",
+  "action_input": "response"
+}}}}
+```
+"""
 
         # Human message template with placeholders
         human_message = """{input}
