@@ -175,8 +175,7 @@ graph TD
     
     F -->|Yes| G[Generate Response]
     F -->|No| H[Web Scraping Tool]
-    H --> I[Playwright + BeautifulSoup]
-    I --> J[Extract Page Content]
+    H --> J[Extract Page Content]
     J --> K[Combine Search + Scraped Data]
     K --> G
     
@@ -198,7 +197,7 @@ graph TD
     classDef decision stroke:#2196f3,stroke-width:3px
     
     class E,F,G searchPath
-    class H,I,J,K scrapePath
+    class H,J,K scrapePath
     class C,F decision
 ```
 
@@ -329,13 +328,13 @@ Edit `sites_data.csv` to configure which knowledge sources the agent can search:
 
 ```csv
 domain,site,description
-langchain.com,docs.langchain.com,LangChain documentation for building applications with LLMs
-fastapi.com,fastapi.tiangolo.com,FastAPI framework documentation
-crewai.com,docs.crewai.com,CrewAI documentation for building AI agent crews
+AI Agent Frameworks,github.com/openai/swarm,OpenAI Swarm documentation for lightweight multi-agent orchestration
+AI Operations,docs.agentops.ai,AgentOps documentation for testing debugging and deploying AI agents and LLM apps
+AI Data Frameworks,docs.llamaindex.ai,LlamaIndex documentation for building LLM-powered agents over your data
 ```
 
 **CSV Structure Explanation:**
-- **domain**: The topic/subject domain (e.g., langchain.com, fastapi.com) - used for categorization
+- **domain**: The topic/subject domain (e.g., AI Agents, Finance, etc.) - used for categorization
 - **site**: The actual website domain to search (e.g., docs.langchain.com, fastapi.tiangolo.com) - used by Tavily API
 - **description**: Human-readable description of what this knowledge source contains
 
@@ -522,24 +521,6 @@ qagent/
 ## License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
-
-### Copyright Notice
-
-```
-Copyright 2024 Javi Ramos
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-```
 
 ## Contributing
 
