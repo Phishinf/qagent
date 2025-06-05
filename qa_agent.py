@@ -39,6 +39,7 @@ class DomainQAAgent:
         
         # Create custom search tool with domain restrictions
         self.search_tool = TavilyDomainSearchTool(
+            api_key=config["tavily_api_key"],
             max_results=config["max_results"],
             depth=config["search_depth"],
             max_content_size=config["max_content_size"],
@@ -89,67 +90,69 @@ class DomainQAAgent:
             tools=[self.search_tool],
             verbose=True,
             max_iterations=5,
-            early_stopping_method="generate",
             return_intermediate_steps=True,
             handle_parsing_errors="Check your output format!",
         )
 
     def _create_structured_chat_prompt(self) -> ChatPromptTemplate:
-        """Create structured chat prompt with domain restrictions"""
-        # Get available domains for the prompt
-        domains_info = self.get_available_domains()
-        domains_text = "\n".join(
-            [
-                f"- {domain['domain']}: {domain['description']}"
-                for domain in domains_info
-            ]
-        )
+        """Create the structured chat prompt template"""
+        # Group sources by domain for organized display
+        domain_groups = {}
+        domains = []
+        for _, row in self.sites_df.iterrows():
+            domain = row['domain']
+            if domain not in domain_groups:
+                domains.append(domain)
+                domain_groups[domain] = []
+            
+            domain_groups[domain].append({
+                'site': row['site'],
+                'description': row['description']
+            })
 
-        # System message defines agent behavior and rules
-        system_message = f"""You are a Q&A assistant that ONLY provides information from specific documentation sources.
+        # Create markdown formatted knowledge sources
+        knowledge_sources_md = ""
+        for domain, sources in domain_groups.items():
+            knowledge_sources_md += f"\n## {domain}\n\n"
+            for source in sources:
+                knowledge_sources_md += f"- {source['site']}: {source['description']}\n"
+            knowledge_sources_md += "\n"
 
-AVAILABLE DOMAINS:
-{domains_text}
+        # System message template
+        system_message = f"""You are a specialized Q&A agent that searches specific documentation websites.
+
+AVAILABLE KNOWLEDGE SOURCES split by category/domain/topic having the website and description for each category:
+{knowledge_sources_md}
+
+
+INSTRUCTIONS:
+1. You MUST use the search tool for ANY question
+2. Analyze the user's question to determine relevant domains/topics/categories
+3. Select appropriate sites based on technologies/topics mentioned
+4. You must only answer questions about available knowledge sources: {domains}
+5. If question is outside available knowledge sources, do not answer the question and suggest which topics you can answer
 
 RULES:
-1. ALWAYS use the search tool for ANY question
-2. ONLY answer questions related to the domains above
-3. If question is outside available domains, refuse and list available domains
-4. Search the most relevant domain for the user's query
+- Be helpful and comprehensive
+- Cite sources when possible
 
 You have access to: {{tools}}
 
-Use JSON format for actions:
-```
-{{{{
-  "action": "$TOOL_NAME",
-  "action_input": "$INPUT"
-}}}}
-```
+Use the following format:
 
-Valid actions: "Final Answer" or {{tool_names}}
+Question: the input question you must answer
+Thought: you should always think about what to do
+Action: the action to take, should be one of [{{tool_names}}]
+Action Input: the input to the action
+Observation: the result of the action
+... (this Thought/Action/Action Input/Observation can repeat N times)
+Thought: I now know the final answer
+Final Answer: the final answer to the original input question
 
-Format:
-Question: input question
-Thought: analyze and plan
-Action: ```$JSON_BLOB```
-Observation: action result
-... (repeat as needed)
-Thought: ready to respond
-Action: 
-```
-{{{{
-  "action": "Final Answer",
-  "action_input": "response"
-}}}}
-```
+Begin!
 
-If question is outside available domains, respond:
-"I can only provide information about: {domains_text}
-
-Your question is outside my available domains. Please ask about the above topics."
-
-Always use search tool first, then provide comprehensive Final Answer."""
+Question: {{input}}
+Thought:{{agent_scratchpad}}"""
 
         # Human message template with placeholders
         human_message = """{input}
@@ -164,10 +167,6 @@ Always use search tool first, then provide comprehensive Final Answer."""
                 ("human", human_message),
             ]
         )
-
-    def get_available_domains(self) -> List[Dict[str, str]]:
-        """Get available domains and descriptions"""
-        return self.sites_df[["domain", "description"]].to_dict("records")
 
     async def achat(self, user_input: str) -> str:
         """Process user input asynchronously"""

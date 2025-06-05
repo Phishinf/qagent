@@ -24,10 +24,11 @@ class TavilySearchInput(BaseModel):
         "mentioned in the user's query."
     )
     sites: List[str] = Field(
-        description="List of specific website domains to search within. These should be selected "
-        "based on the user's query context and the available domains. Choose sites that "
-        "are most likely to contain relevant documentation for the user's question. "
-        "Examples: ['docs.python.org'], ['fastapi.tiangolo.com', 'docs.python.org']"
+        description="List of specific website domains to search within (e.g., 'docs.langchain.com', "
+        "'fastapi.tiangolo.com'). These should be selected based on the user's query context and "
+        "the available documentation sites. Choose sites that are most likely to contain relevant "
+        "documentation for the user's question. Examples: ['docs.python.org'], "
+        "['fastapi.tiangolo.com', 'docs.python.org']"
     )
     max_results: Optional[int] = Field(
         default=None,
@@ -46,28 +47,30 @@ class TavilyDomainSearchTool(BaseTool):
 
     name: str = "tavily_domain_search"
     description: str = """
-    Search for information within specific documentation domains using Tavily web search.
+    Search for information within specific documentation websites using Tavily web search.
 
     This tool is designed to find relevant documentation and technical information by:
     1. Taking an enriched search query that you should craft from the user's question
-    2. Searching only within the specified website domains that you select based on the query context
+    2. Searching only within the specified website domains (e.g., docs.langchain.com, fastapi.tiangolo.com)
     3. Returning formatted results with titles, URLs, and content snippets
 
     Key Usage Guidelines:
     - INPUT: Create a detailed, keyword-rich search query from the user's question. Include specific
       technical terms, framework names, and concepts to get the best results.
-    - SITES: Analyze the user's question to determine which documentation sites are most relevant.
-      Select appropriate domains from the available options based on the technologies mentioned.
-    - Always prefer official documentation sites for technical queries.
+    - SITES: Analyze the user's question to determine which documentation websites are most relevant.
+      Select appropriate website domains from the available options based on the technologies mentioned.
+      For example, if the user asks about LangChain, select 'docs.langchain.com'.
+    - Always prefer official documentation websites for technical queries.
     - Use multiple sites if the question spans multiple technologies or frameworks.
 
-    The tool will enhance your query with site restrictions and return comprehensive results
+    The tool will search only within the specified website domains and return comprehensive results
     from the selected documentation sources.
     """
     args_schema: Type[BaseModel] = TavilySearchInput
 
     # Define fields properly for Pydantic v2
     tavily_client: Any = Field(default=None, exclude=True)
+    api_key: str = Field(exclude=True)
     default_max_results: int = Field(default=10, exclude=True)
     default_depth: str = Field(default="basic", exclude=True)
     max_content_size: int = Field(default=10000, exclude=True)
@@ -82,20 +85,20 @@ class TavilyDomainSearchTool(BaseTool):
         depth: str = "basic",
         max_content_size: int = 10000,
     ):
-        super().__init__()
-        self.api_key = api_key
-        self.default_max_results = max_results
-        self.default_depth = depth
-        self.max_content_size = max_content_size
+        super().__init__(
+            api_key=api_key,
+            default_max_results=max_results,
+            default_depth=depth,
+            max_content_size=max_content_size,
+        )
 
         # Initialize Tavily client
-        tavily_api_key = os.getenv("TAVILY_API_KEY")
-        if not tavily_api_key:
-            raise ValueError("TAVILY_API_KEY environment variable is required")
+        if not api_key:
+            raise ValueError("TAVILY_API_KEY is required either as parameter or environment variable")
 
         # Set the tavily_client using object.__setattr__ to bypass Pydantic
         # validation
-        object.__setattr__(self, "tavily_client", TavilyClient(api_key=tavily_api_key))
+        object.__setattr__(self, "tavily_client", TavilyClient(api_key=api_key))
         logger.info("Tavily Domain Search Tool initialized")
 
     def _run(
@@ -114,19 +117,12 @@ class TavilyDomainSearchTool(BaseTool):
                 f"📊 Search parameters: max_results={final_max_results}, depth={final_depth}"
             )
 
-            # Create the search query with site restrictions
-            # Tavily supports site: operator for restricting searches to
-            # specific domains
-            site_restrictions = " OR ".join([f"site:{site}" for site in sites])
-            enhanced_query = f"{input} ({site_restrictions})"
-
-            logger.info(f"🚀 Enhanced query: {enhanced_query}")
-
             # Perform the search using Tavily
             search_results = self.tavily_client.search(
-                query=enhanced_query,
+                query=input,
                 max_results=final_max_results,
                 search_depth=final_depth,
+                include_domains=sites,
             )
 
             logger.info(

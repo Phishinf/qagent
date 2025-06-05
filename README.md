@@ -233,9 +233,6 @@ Once running, visit:
 
 ## API Endpoints
 
-### GET `/domains`
-Get list of available domains the agent can search.
-
 ### POST `/chat`
 Send a question to the agent.
 ```json
@@ -279,15 +276,21 @@ LLM_TIMEOUT=60                 # LLM response timeout in seconds
 
 ## Domain Configuration
 
-Edit `sites_data.csv` to configure which domains the agent can search:
+Edit `sites_data.csv` to configure which knowledge sources the agent can search:
 
 ```csv
 domain,site,description
-LangChain,docs.langchain.com,Official LangChain documentation
-FastAPI,fastapi.tiangolo.com,FastAPI framework documentation
+langchain.com,docs.langchain.com,LangChain documentation for building applications with LLMs
+fastapi.com,fastapi.tiangolo.com,FastAPI framework documentation
+crewai.com,docs.crewai.com,CrewAI documentation for building AI agent crews
 ```
 
-**This is your organization's knowledge boundary** - the agent will only search these approved sites and reject questions about anything else.
+**CSV Structure Explanation:**
+- **domain**: The topic/subject domain (e.g., langchain.com, fastapi.com) - used for categorization
+- **site**: The actual website domain to search (e.g., docs.langchain.com, fastapi.tiangolo.com) - used by Tavily API
+- **description**: Human-readable description of what this knowledge source contains
+
+**This defines your organization's knowledge boundary** - the agent will only search these approved documentation websites and reject questions about anything else.
 
 ## Organizational Use Cases
 
@@ -323,9 +326,10 @@ FastAPI,fastapi.tiangolo.com,FastAPI framework documentation
 ### Tavily Integration
 ```python
 # In custom_search_tool.py
+# The agent selects which website domains to search based on the user's query
 search_params = {
     "query": query,
-    "include_domains": [site_info["site"] for site_info in sites_info],
+    "include_domains": [site_info["site"] for site_info in sites_info],  # e.g., ["docs.langchain.com"]
     "max_results": max_results,
     "search_depth": search_depth
 }
@@ -333,11 +337,15 @@ search_params = {
 
 ### Agent Enforcement
 - Agent **must** use search tool for every question
-- Questions outside configured domains trigger rejection responses
+- Questions outside configured knowledge sources trigger rejection responses
 - Clear user guidance about available knowledge areas
 
+### Configuration Details
+- **Topic Domains** (CSV 'domain' column): Used for categorization and user communication (e.g., "langchain.com", "fastapi.com")
+- **Website Domains** (CSV 'site' column): Used for actual search restrictions in Tavily API (e.g., "docs.langchain.com", "fastapi.tiangolo.com")
+
 ### Benefits for Organizations
-- ✅ **No data leakage** - searches only approved sources
+- ✅ **No data leakage** - searches only approved documentation websites
 - ✅ **No hallucination** - responses based only on real documentation  
 - ✅ **Audit trail** - all searches are logged and traceable
 - ✅ **Easy updates** - modify `sites_data.csv` to change knowledge scope

@@ -139,18 +139,6 @@ async def root():
     }
 
 
-@app.get("/domains", response_model=DomainsResponse, summary="Get Available Domains")
-async def get_domains():
-    """Get list of available domains and their descriptions"""
-    if qa_agent is None:
-        raise HTTPException(status_code=500, detail="Q&A Agent not initialized")
-
-    domains = qa_agent.get_available_domains()
-    logger.info(f"Retrieved {len(domains)} available domains")
-
-    return DomainsResponse(domains=domains, count=len(domains))
-
-
 @app.post("/chat", response_model=ChatResponse, summary="Chat with Q&A Agent")
 async def chat_with_agent(request: ChatRequest):
     """Main chat endpoint - processes user questions"""
@@ -188,12 +176,10 @@ async def health_check():
     """Detailed health check with system status"""
     try:
         agent_status = "initialized" if qa_agent is not None else "not_initialized"
-        domains_count = len(qa_agent.get_available_domains()) if qa_agent else 0
 
         return {
             "status": "healthy",
             "agent_status": agent_status,
-            "domains_loaded": domains_count,
             "version": "1.0.0",
             "config": {
                 "max_results": ENV_CONFIG["max_results"],
