@@ -191,9 +191,9 @@ The agent follows a **smart escalation strategy**:
 
 ### Model Selection: Gemini Flash Over "Thinking" Models
 
-This system strategically uses **Gemini 2.0 Flash** (non-thinking model) instead of reasoning-heavy models like o1:
+This system strategically uses **Gemini 2.0 Flash** (non-thinking model) instead of reasoning-heavy models like o3:
 
-| **Aspect** | **Gemini Flash (Non-Thinking)** | **o1-style (Thinking Models)** |
+| **Aspect** | **Gemini Flash (Non-Thinking)** | **o3-style (Thinking Models)** |
 |------------|----------------------------------|--------------------------------|
 | **Cost** | $0.075/1M tokens | $15-60/1M tokens (200-800x more) |
 | **Speed** | 2-5 seconds | 15-60 seconds |

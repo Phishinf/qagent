@@ -31,16 +31,37 @@ class WebScrapingTool(BaseTool):
     """Scrape websites when search results are insufficient"""
 
     name: str = "scrape_website"
-    description: str = """Scrape complete website content using Chromium.
+    description: str = """Scrape complete website content using Chromium browser for comprehensive page extraction.
 
-    Use only when search results don't provide adequate information.
-    
-    Features:
-    - Headless Chromium for JavaScript rendering
-    - Extracts content from multiple HTML tags
-    - Handles modern dynamic websites
-    
-    Warning: Slower than search. Use sparingly.
+    REQUIRED PARAMETERS:
+    - url (string): Complete URL to scrape (must include https:// or http://)
+
+    OPTIONAL PARAMETERS:
+    - tags_to_extract (list): HTML tags to extract content from 
+      Default: ["p", "li", "div", "a", "span", "h1", "h2", "h3", "h4", "h5", "h6"]
+      Custom examples: ["pre", "code"] for code examples, ["table", "tr", "td"] for tables
+
+    WHEN TO USE:
+    - Search results are incomplete or insufficient
+    - Need complete page content including code examples
+    - Page has dynamic JavaScript content that search missed
+    - Need specific formatting or structure that search doesn't capture
+
+    EXAMPLES:
+    - Basic scraping: url="https://docs.langchain.com/docs/modules/agents"
+    - Code-focused scraping: url="https://fastapi.tiangolo.com/tutorial/", tags_to_extract=["pre", "code", "p"]
+    - Table extraction: url="https://docs.python.org/3/library/", tags_to_extract=["table", "tr", "td", "th"]
+
+    BEST PRACTICES:
+    - Only use after search_documentation provides insufficient information
+    - Prefer URLs from previous search results for relevance
+    - Use specific tag extraction for targeted content (faster processing)
+    - Be aware: ~3-10x slower than search, use sparingly for performance
+
+    LIMITATIONS:
+    - Content truncated at configured limit to prevent excessive token usage
+    - Some sites may block automated scraping
+    - Slower than search - reserve for when search is inadequate
     """
     args_schema: Type[BaseModel] = WebScrapingInput
 

@@ -72,7 +72,7 @@ Relevant Summary:
 
 
 class TavilySearchInput(BaseModel):
-    input: str = Field(description="Search query with relevant keywords")
+    query: str = Field(description="Search query with relevant keywords")
     sites: List[str] = Field(
         description="Website domains to search (e.g., ['docs.langchain.com'])"
     )
@@ -90,15 +90,29 @@ class TavilyDomainSearchTool(BaseTool):
     name: str = "search_documentation"
     description: str = """Search documentation websites using Tavily web search.
 
-    Usage:
+    REQUIRED PARAMETERS:
+    - query (string): Search query with relevant keywords - what you want to find
+    - sites (list): Website domains to search within (e.g., ['docs.langchain.com', 'fastapi.tiangolo.com'])
+
+    OPTIONAL PARAMETERS:
+    - max_results (integer): Maximum number of search results to return (default: 10)
+    - depth (string): Search depth - 'basic' for quick searches or 'advanced' for comprehensive searches (default: 'basic')
+
+    Usage Guidelines:
     1. Create keyword-rich search query from user's question
     2. Select relevant website domains based on technologies mentioned
-    3. Get formatted results with titles, URLs, and content snippets
+    3. Use 'basic' depth for quick answers, 'advanced' for thorough research
+    4. Adjust max_results based on how comprehensive you need the answer to be
 
-    Guidelines:
+    Examples:
+    - Quick search: query="LangChain custom tools", sites=["docs.langchain.com"], depth="basic", max_results=5
+    - Comprehensive search: query="FastAPI authentication middleware", sites=["fastapi.tiangolo.com"], depth="advanced", max_results=15
+
+    Best Practices:
     - Include technical terms and framework names in queries
     - Choose appropriate domains for the question context
-    - Prefer official documentation sites
+    - Prefer official documentation sites over third-party sources
+    - Use specific queries rather than broad terms for better results
     """
     args_schema: Type[BaseModel] = TavilySearchInput
 
@@ -147,20 +161,20 @@ class TavilyDomainSearchTool(BaseTool):
         )
 
     def _run(
-        self, input: str, sites: List[str], max_results: int = None, depth: str = None
+        self, query: str, sites: List[str], max_results: int = None, depth: str = None
     ) -> str:
         """Execute search with given parameters"""
         try:
             final_max_results = max_results or self.default_max_results
             final_depth = depth or self.default_depth
 
-            logger.info(f"🔍 Searching: '{input}' on sites: {sites}")
+            logger.info(f"🔍 Searching: '{query}' on sites: {sites}")
             logger.info(
                 f"📊 Parameters: max_results={final_max_results}, depth={final_depth}"
             )
 
             search_results = self.tavily_client.search(
-                query=input,
+                query=query,
                 max_results=final_max_results,
                 search_depth=final_depth,
                 include_domains=sites,
@@ -184,7 +198,7 @@ class TavilyDomainSearchTool(BaseTool):
             if self.enable_summarization and self.summarizer_llm:
                 try:
                     logger.info("🧠 Summarizing results...")
-                    summarized_result = self._summarize_results(final_result, input)
+                    summarized_result = self._summarize_results(final_result, query)
                     reduction = round(
                         (1 - len(summarized_result) / len(final_result)) * 100
                     )
@@ -215,7 +229,7 @@ class TavilyDomainSearchTool(BaseTool):
             return search_results
 
     async def _arun(
-        self, input: str, sites: List[str], max_results: int = None, depth: str = None
+        self, query: str, sites: List[str], max_results: int = None, depth: str = None
     ) -> str:
         """Async version of search"""
-        return self._run(input, sites, max_results, depth) 
+        return self._run(query, sites, max_results, depth) 
