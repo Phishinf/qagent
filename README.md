@@ -22,6 +22,116 @@ Perfect for organizations wanting to create internal knowledge assistants that s
 - **💬 Conversation Memory**: Maintains context across multiple questions in a session
 - **🎮 Production Ready**: FastAPI backend with proper error handling and logging
 
+## 🚀 Quick Start
+
+### Setting Up Your Knowledge Sources
+
+To configure which websites your agent can search, edit the `sites_data.csv` file. This CSV defines your agent's knowledge boundaries:
+
+```csv
+domain,site,description
+AI Agent Frameworks,github.com/openai/swarm,OpenAI Swarm documentation for lightweight multi-agent orchestration
+AI Operations,docs.agentops.ai,AgentOps documentation for testing debugging and deploying AI agents and LLM apps
+AI Data Frameworks,docs.llamaindex.ai,LlamaIndex documentation for building LLM-powered agents over your data
+```
+
+**CSV Structure:**
+- **domain**: The subject area or topic (e.g., "AI Agents", "Web Development", "Machine Learning")
+- **site**: The actual website domain to search (e.g., "docs.langchain.com", "docs.python.org")
+- **description**: A clear explanation of what the site contains and when to use it
+
+**Pro Tip:** The description is crucial - it's what the agent uses to decide whether a particular site will be helpful for answering a user's question. Be specific about what topics and types of information each site covers.
+
+### Obtaining API Keys
+
+#### Getting a Tavily API Key:
+1. Go to [tavily.com](https://tavily.com) and sign up for a free account
+2. Navigate to your dashboard or API section
+3. Find your API key in the dashboard
+4. Tavily offers a generous free tier with thousands of searches per month
+
+#### Getting a Google API Key:
+1. Visit [ai.google.dev](https://ai.google.dev) (Google AI Studio)
+2. Sign in with your Google account
+3. Click "Get API Key" or navigate to the API keys section
+4. Create a new project if needed
+5. Generate your API key
+6. Google's Gemini API includes a substantial free tier
+
+After obtaining both keys, add them to your `.env` file:
+```bash
+TAVILY_API_KEY=your_tavily_key_here
+GOOGLE_API_KEY=your_google_key_here
+```
+
+**Security Note:** Keep these keys secure and never commit them to public repositories. Both services offer excellent free tiers suitable for development and small-scale production use.
+
+
+### Option 1: Using Make (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/javiramos1/qagent.git
+cd qagent
+
+# Setup environment and install dependencies
+make install
+
+# Copy and configure environment variables
+cp .env.example .env
+# Edit .env with your API keys
+
+# Run the application
+make run
+```
+
+### Option 2: Using Docker
+
+```bash
+# Clone the repository
+git clone https://github.com/javiramos1/qagent.git
+cd qagent
+
+# Copy and configure environment variables
+cp .env.example .env
+# Edit .env with your API keys
+
+# Run with Docker Compose
+make docker-run
+```
+
+## 🔧 Configuration
+
+### Required Environment Variables
+
+```bash
+GOOGLE_API_KEY=your_google_api_key_here    # Get from Google Cloud Console
+TAVILY_API_KEY=your_tavily_api_key_here    # Get from Tavily.com
+```
+
+
+### Optional Environment Variables
+
+```bash
+# Search Configuration
+MAX_RESULTS=10                    # Maximum search results per query
+SEARCH_DEPTH=basic              # Search depth: basic or advanced
+MAX_CONTENT_SIZE=100000         # Maximum content size per result
+MAX_SCRAPE_LENGTH=10000          # Maximum content length for web scraping (characters)
+ENABLE_SEARCH_SUMMARIZATION=false  # Enable AI summarization of search results (reduces tokens 60-80%)
+
+# LLM Configuration
+LLM_TEMPERATURE=0.1             # Response creativity (0.0-1.0)
+LLM_MAX_TOKENS=10000           # Maximum response length
+
+# Timeout Configuration
+REQUEST_TIMEOUT=30              # Request timeout in seconds
+LLM_TIMEOUT=60                 # LLM response timeout in seconds
+
+# Web Scraping Configuration
+USER_AGENT=QAgent/1.0 (Educational Search-First Q&A Agent)  # Identifies your requests (prevents warnings)
+```
+
 ## 📊 Why Search-First Beats RAG in 2025
 
 ### Cost Reality Check
@@ -214,6 +324,34 @@ Human Query → Agent Thinks → Selects Tool → Executes → Observes → Resp
 4. **Faster Responses**: No internal chain-of-thought overhead
 5. **Easier Boundaries**: Explicit tool constraints prevent hallucination
 
+## 📡 API Reference
+
+The agent provides **intelligent two-tier information retrieval** through a simple REST API:
+
+**Session Management**: The API uses secure HTTP cookies to maintain separate conversation memory for each user. When you make your first request, a unique session ID (UUID) is automatically generated and stored in a secure cookie. Each session ID creates its own agent instance with isolated memory, so your conversation history never mixes with other users - even if they're using the API simultaneously.
+
+### Available Endpoints
+
+- `POST /chat` - Send a question to the agent (automatically uses search + scraping as needed)
+- `POST /reset` - Reset conversation memory  
+- `GET /health` - Detailed health check with system status
+
+### Chat Endpoint Example
+
+```bash
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "How do I create a LangChain agent with custom tools?"}'
+```
+
+**Example Response:**
+```json
+{
+  "status": "success",
+  "response": "Based on the LangChain documentation, here's how to create a custom agent..."
+}
+```
+
 ## ⚡ Search Result Summarization
 
 Enable intelligent search result summarization to reduce token usage and improve performance:
@@ -247,115 +385,6 @@ ENABLE_SEARCH_SUMMARIZATION=true
 
 This design choice makes the system **practical for production deployment** while maintaining high answer quality through structured tool usage rather than expensive internal reasoning.
 
-## 🚀 Quick Start
-
-### Setting Up Your Knowledge Sources
-
-To configure which websites your agent can search, edit the `sites_data.csv` file. This CSV defines your agent's knowledge boundaries:
-
-```csv
-domain,site,description
-AI Agent Frameworks,github.com/openai/swarm,OpenAI Swarm documentation for lightweight multi-agent orchestration
-AI Operations,docs.agentops.ai,AgentOps documentation for testing debugging and deploying AI agents and LLM apps
-AI Data Frameworks,docs.llamaindex.ai,LlamaIndex documentation for building LLM-powered agents over your data
-```
-
-**CSV Structure:**
-- **domain**: The subject area or topic (e.g., "AI Agents", "Web Development", "Machine Learning")
-- **site**: The actual website domain to search (e.g., "docs.langchain.com", "docs.python.org")
-- **description**: A clear explanation of what the site contains and when to use it
-
-**Pro Tip:** The description is crucial - it's what the agent uses to decide whether a particular site will be helpful for answering a user's question. Be specific about what topics and types of information each site covers.
-
-### Obtaining API Keys
-
-#### Getting a Tavily API Key:
-1. Go to [tavily.com](https://tavily.com) and sign up for a free account
-2. Navigate to your dashboard or API section
-3. Find your API key in the dashboard
-4. Tavily offers a generous free tier with thousands of searches per month
-
-#### Getting a Google API Key:
-1. Visit [ai.google.dev](https://ai.google.dev) (Google AI Studio)
-2. Sign in with your Google account
-3. Click "Get API Key" or navigate to the API keys section
-4. Create a new project if needed
-5. Generate your API key
-6. Google's Gemini API includes a substantial free tier
-
-After obtaining both keys, add them to your `.env` file:
-```bash
-TAVILY_API_KEY=your_tavily_key_here
-GOOGLE_API_KEY=your_google_key_here
-```
-
-**Security Note:** Keep these keys secure and never commit them to public repositories. Both services offer excellent free tiers suitable for development and small-scale production use.
-
-
-### Option 1: Using Make (Recommended)
-
-```bash
-# Clone the repository
-git clone https://github.com/javiramos1/qagent.git
-cd qagent
-
-# Setup environment and install dependencies
-make install
-
-# Copy and configure environment variables
-cp .env.example .env
-# Edit .env with your API keys
-
-# Run the application
-make run
-```
-
-### Option 2: Using Docker
-
-```bash
-# Clone the repository
-git clone https://github.com/javiramos1/qagent.git
-cd qagent
-
-# Copy and configure environment variables
-cp .env.example .env
-# Edit .env with your API keys
-
-# Run with Docker Compose
-make docker-run
-```
-
-## 🔧 Configuration
-
-### Required Environment Variables
-
-```bash
-GOOGLE_API_KEY=your_google_api_key_here    # Get from Google Cloud Console
-TAVILY_API_KEY=your_tavily_api_key_here    # Get from Tavily.com
-```
-
-
-### Optional Environment Variables
-
-```bash
-# Search Configuration
-MAX_RESULTS=10                    # Maximum search results per query
-SEARCH_DEPTH=basic              # Search depth: basic or advanced
-MAX_CONTENT_SIZE=100000         # Maximum content size per result
-MAX_SCRAPE_LENGTH=10000          # Maximum content length for web scraping (characters)
-ENABLE_SEARCH_SUMMARIZATION=false  # Enable AI summarization of search results (reduces tokens 60-80%)
-
-# LLM Configuration
-LLM_TEMPERATURE=0.1             # Response creativity (0.0-1.0)
-LLM_MAX_TOKENS=10000           # Maximum response length
-
-# Timeout Configuration
-REQUEST_TIMEOUT=30              # Request timeout in seconds
-LLM_TIMEOUT=60                 # LLM response timeout in seconds
-
-# Web Scraping Configuration
-USER_AGENT=QAgent/1.0 (Educational Search-First Q&A Agent)  # Identifies your requests (prevents warnings)
-```
 
 ## 🔒 How Site Restrictions Work
 
@@ -389,33 +418,6 @@ search_params = {
 - ✅ **Easy updates** - modify `sites_data.csv` to change knowledge scope
 - ✅ **Cost control** - limited search scope reduces API usage
 
-## 📡 API Reference
-
-The agent provides **intelligent two-tier information retrieval** through a simple REST API:
-
-**Session Management**: The API uses secure HTTP cookies to maintain separate conversation memory for each user. When you make your first request, a unique session ID (UUID) is automatically generated and stored in a secure cookie. Each session ID creates its own agent instance with isolated memory, so your conversation history never mixes with other users - even if they're using the API simultaneously.
-
-### Available Endpoints
-
-- `POST /chat` - Send a question to the agent (automatically uses search + scraping as needed)
-- `POST /reset` - Reset conversation memory  
-- `GET /health` - Detailed health check with system status
-
-### Chat Endpoint Example
-
-```bash
-curl -X POST http://localhost:8000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message": "How do I create a LangChain agent with custom tools?"}'
-```
-
-**Example Response:**
-```json
-{
-  "status": "success",
-  "response": "Based on the LangChain documentation, here's how to create a custom agent..."
-}
-```
 
 ## 🏢 Organizational Use Cases
 
