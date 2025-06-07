@@ -5,7 +5,7 @@ __pycache__/
 .venv/
 # C extensions
 *.so
-
+qagent_venv/
 # Distribution / packaging
 .Python
 build/

@@ -249,6 +249,49 @@ This design choice makes the system **practical for production deployment** whil
 
 ## 🚀 Quick Start
 
+### Setting Up Your Knowledge Sources
+
+To configure which websites your agent can search, edit the `sites_data.csv` file. This CSV defines your agent's knowledge boundaries:
+
+```csv
+domain,site,description
+AI Agent Frameworks,github.com/openai/swarm,OpenAI Swarm documentation for lightweight multi-agent orchestration
+AI Operations,docs.agentops.ai,AgentOps documentation for testing debugging and deploying AI agents and LLM apps
+AI Data Frameworks,docs.llamaindex.ai,LlamaIndex documentation for building LLM-powered agents over your data
+```
+
+**CSV Structure:**
+- **domain**: The subject area or topic (e.g., "AI Agents", "Web Development", "Machine Learning")
+- **site**: The actual website domain to search (e.g., "docs.langchain.com", "docs.python.org")
+- **description**: A clear explanation of what the site contains and when to use it
+
+**Pro Tip:** The description is crucial - it's what the agent uses to decide whether a particular site will be helpful for answering a user's question. Be specific about what topics and types of information each site covers.
+
+### Obtaining API Keys
+
+#### Getting a Tavily API Key:
+1. Go to [tavily.com](https://tavily.com) and sign up for a free account
+2. Navigate to your dashboard or API section
+3. Find your API key in the dashboard
+4. Tavily offers a generous free tier with thousands of searches per month
+
+#### Getting a Google API Key:
+1. Visit [ai.google.dev](https://ai.google.dev) (Google AI Studio)
+2. Sign in with your Google account
+3. Click "Get API Key" or navigate to the API keys section
+4. Create a new project if needed
+5. Generate your API key
+6. Google's Gemini API includes a substantial free tier
+
+After obtaining both keys, add them to your `.env` file:
+```bash
+TAVILY_API_KEY=your_tavily_key_here
+GOOGLE_API_KEY=your_google_key_here
+```
+
+**Security Note:** Keep these keys secure and never commit them to public repositories. Both services offer excellent free tiers suitable for development and small-scale production use.
+
+
 ### Option 1: Using Make (Recommended)
 
 ```bash
@@ -291,6 +334,7 @@ GOOGLE_API_KEY=your_google_api_key_here    # Get from Google Cloud Console
 TAVILY_API_KEY=your_tavily_api_key_here    # Get from Tavily.com
 ```
 
+
 ### Optional Environment Variables
 
 ```bash
@@ -312,24 +356,6 @@ LLM_TIMEOUT=60                 # LLM response timeout in seconds
 # Web Scraping Configuration
 USER_AGENT=QAgent/1.0 (Educational Search-First Q&A Agent)  # Identifies your requests (prevents warnings)
 ```
-
-### Domain Configuration
-
-Edit `sites_data.csv` to configure which knowledge sources the agent can search:
-
-```csv
-domain,site,description
-AI Agent Frameworks,github.com/openai/swarm,OpenAI Swarm documentation for lightweight multi-agent orchestration
-AI Operations,docs.agentops.ai,AgentOps documentation for testing debugging and deploying AI agents and LLM apps
-AI Data Frameworks,docs.llamaindex.ai,LlamaIndex documentation for building LLM-powered agents over your data
-```
-
-**CSV Structure:**
-- **domain**: The topic/subject domain (e.g., AI Agents, Finance, etc.) - used for categorization
-- **site**: The actual website domain to search (e.g., docs.langchain.com, fastapi.tiangolo.com) - used by Tavily API
-- **description**: Human-readable description of what this knowledge source contains
-
-**This defines your organization's knowledge boundary** - the agent will only search these approved documentation websites and reject questions about anything else.
 
 ## 🔒 How Site Restrictions Work
 
@@ -366,6 +392,8 @@ search_params = {
 ## 📡 API Reference
 
 The agent provides **intelligent two-tier information retrieval** through a simple REST API:
+
+**Session Management**: The API uses secure HTTP cookies to maintain separate conversation memory for each user. When you make your first request, a unique session ID (UUID) is automatically generated and stored in a secure cookie. Each session ID creates its own agent instance with isolated memory, so your conversation history never mixes with other users - even if they're using the API simultaneously.
 
 ### Available Endpoints
 
