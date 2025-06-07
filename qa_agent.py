@@ -181,7 +181,9 @@ class DomainQAAgent:
             [
                 ("system", system_message),
                 MessagesPlaceholder("chat_history", optional=True),
-                ("human", "{input}\n\n{agent_scratchpad}"),
+                ("human", "{input}\n\n{agent_scratchpad}(reminder to respond in a JSON blob no matter what)"
+                    "\n IMPORTANT:When calling a tool keep the JSON blob in the same format using action/action_input fields and pass the function parameters in the action_input field",
+                ),
             ]
         )
 

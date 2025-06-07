@@ -1,13 +1,17 @@
 """
 FastAPI application for Domain-specific Q&A Agent
+
+It reads the env variables from the .env file and uses them to initialize the Q&A agent.
+It has a chat endpoint that allows you to chat with the agent.
 """
 
 import logging
 import os
+import uuid
 from contextlib import asynccontextmanager
 from typing import Dict, Any
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Cookie, Response
 from pydantic import BaseModel
 import uvicorn
 from dotenv import load_dotenv
@@ -104,15 +108,22 @@ async def lifespan(app: FastAPI):
     try:
         logger.info("Initializing Q&A Agent...")
         config = create_config()
-        app.state.qa_agent = DomainQAAgent(config=config)
-        logger.info("Q&A Agent initialized successfully")
+        # Initialize empty session store instead of single agent
+        app.state.user_sessions = {}
+        app.state.config = config
+        logger.info("Session store initialized successfully")
     except Exception as e:
-        logger.error(f"Failed to initialize Q&A Agent: {str(e)}")
+        logger.error(f"Failed to initialize session store: {str(e)}")
         raise
 
     yield
 
-    logger.info("Shutting down Q&A Agent...")
+    logger.info("Shutting down session store...")
+    # Cleanup all agent instances
+    if hasattr(app.state, 'user_sessions'):
+        for session_id in list(app.state.user_sessions.keys()):
+            logger.info(f"Cleaning up session {session_id}")
+        app.state.user_sessions.clear()
 
 
 app = FastAPI(
@@ -123,11 +134,16 @@ app = FastAPI(
 )
 
 
-def get_qa_agent() -> DomainQAAgent:
-    """Get the initialized QA agent instance"""
-    if not hasattr(app.state, "qa_agent") or app.state.qa_agent is None:
-        raise HTTPException(status_code=500, detail="Q&A Agent not initialized")
-    return app.state.qa_agent
+def get_or_create_agent(session_id: str) -> DomainQAAgent:
+    """Get existing agent instance or create new one for session"""
+    if not hasattr(app.state, "user_sessions"):
+        raise HTTPException(status_code=500, detail="Session store not initialized")
+    
+    if session_id not in app.state.user_sessions:
+        logger.info(f"Creating new agent instance for session {session_id}")
+        app.state.user_sessions[session_id] = DomainQAAgent(config=app.state.config)
+    
+    return app.state.user_sessions[session_id]
 
 
 class ChatRequest(BaseModel):
@@ -138,39 +154,67 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     response: str
     status: str = "success"
+    session_id: str
 
 
 @app.get("/health")
-async def health_check(qa_agent: DomainQAAgent = Depends(get_qa_agent)):
-    """Health check with agent status"""
+async def health_check():
+    """Health check with session store status"""
     return {
         "message": "Domain Q&A Agent API is running",
         "status": "healthy",
         "version": "1.0.0",
-        "agent_status": "initialized",
+        "active_sessions": len(app.state.user_sessions) if hasattr(app.state, "user_sessions") else 0,
     }
 
 
 @app.post("/chat", response_model=ChatResponse, summary="Chat with Q&A Agent")
-async def chat(request: ChatRequest, qa_agent: DomainQAAgent = Depends(get_qa_agent)):
+async def chat(
+    request: ChatRequest,
+    response: Response,
+    session_id: str = Cookie(None)
+):
     """Process user questions through the Q&A agent"""
-    logger.info(f"Received chat request: {request.message}")
+    # Generate new session ID if none exists
+    if not session_id:
+        session_id = str(uuid.uuid4())
+        response.set_cookie(
+            key="session_id",
+            value=session_id,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=3600  # 1 hour session
+        )
+    
+    logger.info(f"Processing chat request for session {session_id}")
+    
+    # Get or create agent instance for this session
+    agent = get_or_create_agent(session_id)
 
     if request.reset_memory:
-        qa_agent.reset_memory()
-        logger.info("Memory reset requested")
+        agent.reset_memory()
+        logger.info(f"Memory reset requested for session {session_id}")
 
-    response = await qa_agent.achat(request.message)
-    logger.info("Successfully processed chat request")
+    response_text = await agent.achat(request.message)
+    logger.info(f"Successfully processed chat request for session {session_id}")
 
-    return ChatResponse(response=response)
+    return ChatResponse(
+        response=response_text,
+        status="success",
+        session_id=session_id
+    )
 
 
 @app.post("/reset", summary="Reset conversation memory")
-async def reset_memory(qa_agent: DomainQAAgent = Depends(get_qa_agent)):
-    """Reset conversation memory"""
-    qa_agent.reset_memory()
-    logger.info("Memory reset via endpoint")
+async def reset_memory(session_id: str = Cookie(None)):
+    """Reset conversation memory for the current session"""
+    if not session_id:
+        raise HTTPException(status_code=400, detail="No active session")
+    
+    agent = get_or_create_agent(session_id)
+    agent.reset_memory()
+    logger.info(f"Memory reset via endpoint for session {session_id}")
     return {"message": "Conversation memory has been reset", "status": "success"}
 
 

@@ -69,7 +69,7 @@ class WebScrapingTool(BaseTool):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def __init__(self, max_content_length: int = 10000):
-        super().__init__(max_content_length=max_content_length)
+        super().__init__(max_content_length=max_content_length, args_schema=WebScrapingInput)
 
     def _run(self, url: str, tags_to_extract: List[str] = None) -> str:
         """Scrape website content"""

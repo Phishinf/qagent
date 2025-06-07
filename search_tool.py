@@ -141,6 +141,7 @@ class TavilyDomainSearchTool(BaseTool):
             default_depth=depth,
             max_content_size=max_content_size,
             enable_summarization=enable_summarization,
+            args_schema=TavilySearchInput,
         )
 
         if not api_key:
