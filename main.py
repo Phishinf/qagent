@@ -11,7 +11,7 @@ import uuid
 from contextlib import asynccontextmanager
 from typing import Dict, Any
 
-from fastapi import FastAPI, HTTPException, Depends, Cookie, Response
+from fastapi import FastAPI, HTTPException, Cookie, Response
 from pydantic import BaseModel
 import uvicorn
 from dotenv import load_dotenv
@@ -120,7 +120,7 @@ async def lifespan(app: FastAPI):
 
     logger.info("Shutting down session store...")
     # Cleanup all agent instances
-    if hasattr(app.state, 'user_sessions'):
+    if hasattr(app.state, "user_sessions"):
         for session_id in list(app.state.user_sessions.keys()):
             logger.info(f"Cleaning up session {session_id}")
         app.state.user_sessions.clear()
@@ -138,11 +138,11 @@ def get_or_create_agent(session_id: str) -> DomainQAAgent:
     """Get existing agent instance or create new one for session"""
     if not hasattr(app.state, "user_sessions"):
         raise HTTPException(status_code=500, detail="Session store not initialized")
-    
+
     if session_id not in app.state.user_sessions:
         logger.info(f"Creating new agent instance for session {session_id}")
         app.state.user_sessions[session_id] = DomainQAAgent(config=app.state.config)
-    
+
     return app.state.user_sessions[session_id]
 
 
@@ -164,15 +164,15 @@ async def health_check():
         "message": "Domain Q&A Agent API is running",
         "status": "healthy",
         "version": "1.0.0",
-        "active_sessions": len(app.state.user_sessions) if hasattr(app.state, "user_sessions") else 0,
+        "active_sessions": (
+            len(app.state.user_sessions) if hasattr(app.state, "user_sessions") else 0
+        ),
     }
 
 
 @app.post("/chat", response_model=ChatResponse, summary="Chat with Q&A Agent")
 async def chat(
-    request: ChatRequest,
-    response: Response,
-    session_id: str = Cookie(None)
+    request: ChatRequest, response: Response, session_id: str = Cookie(None)
 ):
     """Process user questions through the Q&A agent"""
     # Generate new session ID if none exists
@@ -184,11 +184,11 @@ async def chat(
             httponly=True,
             secure=True,
             samesite="lax",
-            max_age=3600  # 1 hour session
+            max_age=3600,  # 1 hour session
         )
-    
+
     logger.info(f"Processing chat request for session {session_id}")
-    
+
     # Get or create agent instance for this session
     agent = get_or_create_agent(session_id)
 
@@ -196,14 +196,11 @@ async def chat(
         agent.reset_memory()
         logger.info(f"Memory reset requested for session {session_id}")
 
+    # Async Call to agent's chat method
     response_text = await agent.achat(request.message)
     logger.info(f"Successfully processed chat request for session {session_id}")
 
-    return ChatResponse(
-        response=response_text,
-        status="success",
-        session_id=session_id
-    )
+    return ChatResponse(response=response_text, status="success", session_id=session_id)
 
 
 @app.post("/reset", summary="Reset conversation memory")
@@ -211,7 +208,7 @@ async def reset_memory(session_id: str = Cookie(None)):
     """Reset conversation memory for the current session"""
     if not session_id:
         raise HTTPException(status_code=400, detail="No active session")
-    
+
     agent = get_or_create_agent(session_id)
     agent.reset_memory()
     logger.info(f"Memory reset via endpoint for session {session_id}")

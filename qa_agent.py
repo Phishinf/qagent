@@ -10,7 +10,6 @@ from langchain.agents import AgentExecutor, create_structured_chat_agent
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.schema import BaseMessage, HumanMessage, AIMessage
-from langchain.memory import ConversationBufferWindowMemory
 
 from search_tool import TavilyDomainSearchTool
 from scraping_tool import WebScrapingTool
@@ -34,7 +33,7 @@ def load_sites_data(csv_file_path: str) -> pd.DataFrame:
 def create_llm(config: Dict[str, Any]) -> ChatGoogleGenerativeAI:
     """Initialize Gemini model with configuration"""
     return ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash-exp",
+        model="gemini-2.0-flash",
         google_api_key=config["google_api_key"],
         temperature=config["llm_temperature"],
         max_tokens=config["llm_max_tokens"],
@@ -105,12 +104,12 @@ INSTRUCTIONS:
 TOOL USAGE STRATEGY:
 - First: Use search_documentation to find relevant information quickly
 - Second: If search results are incomplete, unclear or do not provide enough information to answer the question, use scrape_website on the most promising URL from search results
-- Always prefer search over scraping for efficiency
+- Always prefer search over scraping for efficiency but always use scraping when search results provided no relevant information
 
 RULES:
 - Be helpful and comprehensive
 - Cite sources when possible
-- Only use scraping when absolutely necessary (when search results are insufficient)
+- Only use scraping when search results provide no answer
 - When scraping, choose the most relevant URL from previous search results
 
 You have access to the following tools:
@@ -180,8 +179,10 @@ class DomainQAAgent:
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", system_message),
-                MessagesPlaceholder("chat_history", optional=True),
-                ("human", "{input}\n\n{agent_scratchpad}(reminder to respond in a JSON blob no matter what)"
+                MessagesPlaceholder(variable_name="chat_history", optional=True),
+                (
+                    "human",
+                    "{input}\n\n{agent_scratchpad}(reminder to respond in a JSON blob no matter what)"
                     "\n IMPORTANT:When calling a tool keep the JSON blob in the same format using action/action_input fields and pass the function parameters in the action_input field",
                 ),
             ]
@@ -195,9 +196,9 @@ class DomainQAAgent:
             agent=agent,
             tools=[self.search_tool, self.scraping_tool],
             verbose=True,
-            max_iterations=5,
+            max_iterations=10, # Limit iterations to prevent infinite loops
             return_intermediate_steps=True,
-            handle_parsing_errors=True,
+            handle_parsing_errors=True, # Handle parsing errors gracefully
         )
 
     async def achat(self, user_input: str) -> str:
@@ -205,10 +206,18 @@ class DomainQAAgent:
         try:
             logger.info(f"Processing: {user_input}")
 
-            agent_input = {"input": user_input, "chat_history": self.chat_history}
+            agent_input = {
+                "input": user_input,
+                "chat_history": (
+                    self.chat_history[-5:] if self.chat_history else []
+                ),  # limit context window to 5
+            }
+
+            # Async invoke the agent executor
             response = await self.agent_executor.ainvoke(agent_input)
             answer = response.get("output", "I couldn't process your request.")
 
+            # Update chat history
             self.chat_history.extend(
                 [HumanMessage(content=user_input), AIMessage(content=answer)]
             )

@@ -69,24 +69,41 @@ class WebScrapingTool(BaseTool):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def __init__(self, max_content_length: int = 10000):
-        super().__init__(max_content_length=max_content_length, args_schema=WebScrapingInput)
+        super().__init__(
+            max_content_length=max_content_length, args_schema=WebScrapingInput
+        )
 
-    def _run(self, url: str, tags_to_extract: List[str] = None) -> str:
-        """Scrape website content"""
+    async def _process_scraping(
+        self, url: str, tags_to_extract: List[str] = None, is_async: bool = True
+    ) -> str:
+        """Common logic for both sync and async scraping"""
         try:
             if tags_to_extract is None:
                 tags_to_extract = get_default_tags()
 
             loader = AsyncChromiumLoader([url])
-            html_docs = loader.load()
+
+            if is_async:
+                html_docs = await asyncio.to_thread(loader.load)
+            else:
+                html_docs = loader.load()
 
             if not html_docs:
                 return f"Failed to load content from {url}"
 
             bs_transformer = BeautifulSoupTransformer()
-            docs_transformed = bs_transformer.transform_documents(
-                html_docs, tags_to_extract=tags_to_extract
-            )
+
+            if is_async:
+                docs_transformed = await asyncio.to_thread(
+                    bs_transformer.transform_documents,
+                    html_docs,
+                    tags_to_extract=tags_to_extract,
+                )
+            else:
+                docs_transformed = bs_transformer.transform_documents(
+                    html_docs,
+                    tags_to_extract=tags_to_extract,
+                )
 
             if not docs_transformed:
                 return f"No content extracted from {url}"
@@ -110,43 +127,12 @@ class WebScrapingTool(BaseTool):
         except Exception as e:
             return f"Web scraping error for {url}: {str(e)}"
 
+    def _run(self, url: str, tags_to_extract: List[str] = None) -> str:
+        """Scrape website content"""
+        return asyncio.run(
+            self._process_scraping(url, tags_to_extract, is_async=False)
+        )
+
     async def _arun(self, url: str, tags_to_extract: List[str] = None) -> str:
         """Async version of scraping"""
-        try:
-            if tags_to_extract is None:
-                tags_to_extract = get_default_tags()
-
-            loader = AsyncChromiumLoader([url])
-            html_docs = await asyncio.to_thread(loader.load)
-
-            if not html_docs:
-                return f"Failed to load content from {url}"
-
-            bs_transformer = BeautifulSoupTransformer()
-            docs_transformed = await asyncio.to_thread(
-                bs_transformer.transform_documents,
-                html_docs,
-                tags_to_extract=tags_to_extract,
-            )
-
-            if not docs_transformed:
-                return f"No content extracted from {url}"
-
-            content = docs_transformed[0].page_content
-
-            if len(content) > self.max_content_length:
-                content = (
-                    content[: self.max_content_length] + "\n\n... (content truncated)"
-                )
-
-            return f"""
-**Website Scraped:** {url}
-**Content Extracted:**
-
-{content}
-
-**Note:** Complete website content for comprehensive analysis.
-"""
-
-        except Exception as e:
-            return f"Web scraping error for {url}: {str(e)}" 
+        return await self._process_scraping(url, tags_to_extract, is_async=True)

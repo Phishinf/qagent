@@ -4,6 +4,7 @@ Tavily search tool for domain-specific web search
 
 import logging
 from typing import List, Optional, Type, Any
+import asyncio
 
 from pydantic import BaseModel, Field, ConfigDict
 from langchain.tools import BaseTool
@@ -45,7 +46,7 @@ Content: {content}
 ---
 """
         formatted_results.append(formatted_result)
-    
+
     return formatted_results
 
 
@@ -161,10 +162,8 @@ class TavilyDomainSearchTool(BaseTool):
             f"Tavily search tool initialized (summarization: {'enabled' if self.enable_summarization else 'disabled'})"
         )
 
-    def _run(
-        self, query: str, sites: List[str], max_results: int = None, depth: str = None
-    ) -> str:
-        """Execute search with given parameters"""
+    async def _search_async(self, query: str, sites: List[str], max_results: int = None, depth: str = None) -> str:
+        """Execute search with given parameters asynchronously"""
         try:
             final_max_results = max_results or self.default_max_results
             final_depth = depth or self.default_depth
@@ -174,7 +173,9 @@ class TavilyDomainSearchTool(BaseTool):
                 f"📊 Parameters: max_results={final_max_results}, depth={final_depth}"
             )
 
-            search_results = self.tavily_client.search(
+            # Note: TavilyClient doesn't have async methods yet, so we run in thread
+            search_results = await asyncio.to_thread(
+                self.tavily_client.search,
                 query=query,
                 max_results=final_max_results,
                 search_depth=final_depth,
@@ -199,7 +200,7 @@ class TavilyDomainSearchTool(BaseTool):
             if self.enable_summarization and self.summarizer_llm:
                 try:
                     logger.info("🧠 Summarizing results...")
-                    summarized_result = self._summarize_results(final_result, query)
+                    summarized_result = await self._summarize_results_async(final_result, query)
                     reduction = round(
                         (1 - len(summarized_result) / len(final_result)) * 100
                     )
@@ -219,18 +220,25 @@ class TavilyDomainSearchTool(BaseTool):
             logger.error(error_msg)
             return error_msg
 
-    def _summarize_results(self, search_results: str, original_query: str) -> str:
-        """Summarize search results using LLM"""
+    async def _summarize_results_async(self, search_results: str, original_query: str) -> str:
+        """Summarize search results using LLM asynchronously"""
         try:
             prompt = create_summary_prompt(search_results, original_query)
-            response = self.summarizer_llm.invoke(prompt)
+            response = await asyncio.to_thread(self.summarizer_llm.invoke, prompt)
             return response.content
         except Exception as e:
             logger.error(f"LLM summarization failed: {e}")
             return search_results
 
+    def _run(
+        self, query: str, sites: List[str], max_results: int = None, depth: str = None
+    ) -> str:
+        """Execute search with given parameters"""
+        return asyncio.run(self._search_async(query, sites, max_results, depth))
+
     async def _arun(
         self, query: str, sites: List[str], max_results: int = None, depth: str = None
     ) -> str:
         """Async version of search"""
-        return self._run(query, sites, max_results, depth) 
+        logger.info(f"🔍 Async search: '{query}'")
+        return await self._search_async(query, sites, max_results, depth)
