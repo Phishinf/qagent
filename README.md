@@ -26,7 +26,7 @@ Perfect for organizations wanting to create internal knowledge assistants that s
 
 ### Setting Up Your Knowledge Sources
 
-To configure which websites your agent can search, edit the `sites_data.csv` file. This CSV defines your agent's knowledge boundaries:
+To configure which websites your agent can search, edit the `sites_data.csv` file. This CSV defines your agent's knowledge boundaries and domains:
 
 ```csv
 domain,site,description
