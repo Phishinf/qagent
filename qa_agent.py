@@ -162,16 +162,17 @@ class DomainQAAgent:
             raise ValueError("Configuration is required")
 
         self.config = config
+        # Load sites data from CSV, this can be moved to main.py or a separate config module
         self.sites_df = load_sites_data(csv_file_path)
         self.llm = create_llm(config)
-        self.search_tool = create_search_tool(config)
-        self.scraping_tool = create_scraping_tool(config)
+        search_tool = create_search_tool(config)
+        scraping_tool = create_scraping_tool(config)
         self.chat_history: List[BaseMessage] = []
-        self.agent_executor = self._create_agent()
+        self.agent_executor = self._create_agent(search_tool, scraping_tool)
 
         logger.info(f"Agent initialized with {len(self.sites_df)} sites")
 
-    def _create_agent(self) -> AgentExecutor:
+    def _create_agent(self, search_tool, scraping_tool) -> AgentExecutor:
         """Create structured chat agent with tools and prompt"""
         knowledge_sources_md, domains = build_knowledge_sources_text(self.sites_df)
         system_message = create_system_prompt(knowledge_sources_md, domains)
@@ -189,14 +190,14 @@ class DomainQAAgent:
         )
 
         agent = create_structured_chat_agent(
-            llm=self.llm, tools=[self.search_tool, self.scraping_tool], prompt=prompt
+            llm=self.llm, tools=[search_tool, scraping_tool], prompt=prompt
         )
 
         return AgentExecutor(
             agent=agent,
-            tools=[self.search_tool, self.scraping_tool],
+            tools=[search_tool, scraping_tool],
             verbose=True,
-            max_iterations=10, # Limit iterations to prevent infinite loops
+            max_iterations=10, # Limit iterations to prevent infinite loops, this can be an env variable
             return_intermediate_steps=True,
             handle_parsing_errors=True, # Handle parsing errors gracefully
         )
@@ -210,7 +211,7 @@ class DomainQAAgent:
                 "input": user_input,
                 "chat_history": (
                     self.chat_history[-5:] if self.chat_history else []
-                ),  # limit context window to 5
+                ),  # limit context window to 5, this can be adjusted
             }
 
             # Async invoke the agent executor

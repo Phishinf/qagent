@@ -70,7 +70,7 @@ def build_config() -> Dict[str, Any]:
         "max_results": get_int_env("MAX_RESULTS", 10),
         "search_depth": search_depth,
         "max_content_size": get_int_env("MAX_CONTENT_SIZE", 10000),
-        "max_scrape_length": get_int_env("MAX_SCRAPE_LENGTH", 10000),
+        "max_scrape_length": get_int_env("MAX_SCRAPE_LENGTH", 20000),
         "enable_search_summarization": os.getenv(
             "ENABLE_SEARCH_SUMMARIZATION", "false"
         ).lower()

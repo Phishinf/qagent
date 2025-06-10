@@ -65,10 +65,10 @@ class WebScrapingTool(BaseTool):
     """
     args_schema: Type[BaseModel] = WebScrapingInput
 
-    max_content_length: int = Field(default=10000, exclude=True)
+    max_content_length: int = Field(default=20000, exclude=True)
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def __init__(self, max_content_length: int = 10000):
+    def __init__(self, max_content_length: int = 20000):
         super().__init__(
             max_content_length=max_content_length, args_schema=WebScrapingInput
         )
