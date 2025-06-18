@@ -71,7 +71,7 @@ GOOGLE_API_KEY=your_google_key_here
 
 ```bash
 # Clone the repository
-git clone https://github.com/javiramos1/qagent.git
+git clone [git](https://github.com/Phishinf/qagent.git)
 cd qagent
 
 # Setup environment and install dependencies
@@ -89,7 +89,7 @@ make run
 
 ```bash
 # Clone the repository
-git clone https://github.com/javiramos1/qagent.git
+git clone [git](https://github.com/Phishinf/qagent.git)
 cd qagent
 
 # Copy and configure environment variables
